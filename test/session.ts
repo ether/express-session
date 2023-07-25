@@ -1,35 +1,39 @@
+import after from 'after'
+import assert from 'assert'
+import cookieParser from 'cookie-parser'
+import express from 'express'
+import fs from 'fs'
+import http from 'http'
+import https from 'https'
+import {Request} from '../session/cookie'
+import SmartStore from './support/smart-store'
+import SyncStore from './support/sync-store'
+import {writePatch,parseSetCookie} from './support/utils'
+import Cookie, {Options} from '../session/cookie'
+import Store from "../session/store";
+import request from 'supertest'
+import { Response } from '../session/cookie'
+import Session from "../session/session";
+import MemoryStore from "../session/memory";
 
-var after = require('after')
-var assert = require('assert')
-var cookieParser = require('cookie-parser')
-var express = require('express')
-var fs = require('fs')
-var http = require('http')
-var https = require('https')
-var request = require('supertest')
-var session = require('../')
-var SmartStore = require('./support/smart-store')
-var SyncStore = require('./support/sync-store')
-var utils = require('./support/utils')
+const min = 60 * 1000;
 
-var Cookie = require('../session/cookie')
 
-var min = 60 * 1000;
 
 /* istanbul ignore next */
-var defer = typeof setImmediate === 'function'
+const defer = typeof setImmediate === 'function'
   ? setImmediate
-  : function(fn){ process.nextTick(fn.bind.apply(fn, arguments)) }
+  : function(fn: { bind: { apply: (arg0: any, arg1: IArguments) => Function } }){ process.nextTick(fn.bind.apply(fn, arguments)) }
 
 describe('session()', function(){
   it('should export constructors', function(){
-    assert.strictEqual(typeof session.Session, 'function')
-    assert.strictEqual(typeof session.Store, 'function')
-    assert.strictEqual(typeof session.MemoryStore, 'function')
+    assert.strictEqual(typeof Session, 'function')
+    assert.strictEqual(typeof Store, 'function')
+    assert.strictEqual(typeof MemoryStore, 'function')
   })
 
   it('should do nothing if req.session exists', function(done){
-    function setup (req) {
+    const setup = (req: any)=> {
       req.session = {}
     }
 
@@ -46,7 +50,7 @@ describe('session()', function(){
   })
 
   it('should get secret from req.secret', function(done){
-    function setup (req) {
+    function setup (req: Request) {
       req.secret = 'keyboard cat'
     }
 
@@ -56,9 +60,9 @@ describe('session()', function(){
   })
 
   it('should create a new session', function (done) {
-    var store = new session.MemoryStore()
-    var server = createServer({ store: store }, function (req, res) {
-      req.session.active = true
+    const store = new MemoryStore()
+    const server = createServer({ store: store }, function (req: Request, res: Response) {
+      req.session!.active = true
       res.end('session active')
     });
 
@@ -67,7 +71,7 @@ describe('session()', function(){
     .expect(shouldSetCookie('connect.sid'))
     .expect(200, 'session active', function (err, res) {
       if (err) return done(err)
-      store.length(function (err, len) {
+      store.length(function (err:any, len: number) {
         if (err) return done(err)
         assert.strictEqual(len, 1)
         done()
@@ -76,9 +80,9 @@ describe('session()', function(){
   })
 
   it('should load session from cookie sid', function (done) {
-    var count = 0
-    var server = createServer(null, function (req, res) {
-      req.session.num = req.session.num || ++count
+    let count = 0
+    const server = createServer(null, function (req: Request, res: Response) {
+      req.session!.num = req.session!.num || ++count
       res.end('session ' + req.session.num)
     });
 
@@ -89,18 +93,18 @@ describe('session()', function(){
       if (err) return done(err)
       request(server)
       .get('/')
-      .set('Cookie', cookie(res))
+      .set('Cookie', cookie(res as any))
       .expect(200, 'session 1', done)
     })
   })
 
   it('should pass session fetch error', function (done) {
-    var store = new session.MemoryStore()
-    var server = createServer({ store: store }, function (req, res) {
+    const store = new MemoryStore()
+    const server = createServer({ store: store }, function (req: Request, res: Response) {
       res.end('hello, world')
     })
 
-    store.get = function destroy(sid, callback) {
+    store.get = function destroy(sid, callback:Function) {
       callback(new Error('boom!'))
     }
 
@@ -111,21 +115,21 @@ describe('session()', function(){
       if (err) return done(err)
       request(server)
       .get('/')
-      .set('Cookie', cookie(res))
+      .set('Cookie', cookie(res as any))
       .expect(500, 'boom!', done)
     })
   })
 
   it('should treat ENOENT session fetch error as not found', function (done) {
     var count = 0
-    var store = new session.MemoryStore()
+    var store = new MemoryStore()
     var server = createServer({ store: store }, function (req, res) {
       req.session.num = req.session.num || ++count
       res.end('session ' + req.session.num)
     })
 
-    store.get = function destroy(sid, callback) {
-      var err = new Error('boom!')
+    store.get = function destroy(sid, callback:Function) {
+      const err = new Error('boom!')
       err.code = 'ENOENT'
       callback(err)
     }
@@ -133,28 +137,28 @@ describe('session()', function(){
     request(server)
     .get('/')
     .expect(shouldSetCookie('connect.sid'))
-    .expect(200, 'session 1', function (err, res) {
+    .expect(200, 'session 1',  (err, res)=> {
       if (err) return done(err)
       request(server)
       .get('/')
-      .set('Cookie', cookie(res))
+      .set('Cookie', cookie(res as any))
       .expect(200, 'session 2', done)
     })
   })
 
   it('should create multiple sessions', function (done) {
-    var cb = after(2, check)
-    var count = 0
-    var store = new session.MemoryStore()
-    var server = createServer({ store: store }, function (req, res) {
-      var isnew = req.session.num === undefined
+    const cb = after(2, check)
+    let count = 0
+    const store = new MemoryStore()
+    const server = createServer({ store: store }, function (req, res) {
+      const isnew = req.session.num === undefined
       req.session.num = req.session.num || ++count
       res.end('session ' + (isnew ? 'created' : 'updated'))
     });
 
-    function check(err) {
+    function check(err: Error) {
       if (err) return done(err)
-      store.all(function (err, sess) {
+      store.all((err:Error, sess:any) => {
         if (err) return done(err)
         assert.strictEqual(Object.keys(sess).length, 2)
         done()
@@ -171,7 +175,7 @@ describe('session()', function(){
   })
 
   it('should handle empty req.url', function (done) {
-    function setup (req) {
+    function setup (req:Request) {
       req.url = ''
     }
 
@@ -182,7 +186,7 @@ describe('session()', function(){
   })
 
   it('should handle multiple res.end calls', function(done){
-    var server = createServer(null, function (req, res) {
+    var server = createServer(null, function (req:Request, res:Response) {
       res.setHeader('Content-Type', 'text/plain')
       res.end('Hello, world!')
       res.end()
@@ -207,7 +211,7 @@ describe('session()', function(){
   it('should handle reserved properties in storage', function (done) {
     var count = 0
     var sid
-    var store = new session.MemoryStore()
+    var store = new MemoryStore()
     var server = createServer({ store: store }, function (req, res) {
       sid = req.session.id
       req.session.num = req.session.num || ++count
@@ -246,7 +250,7 @@ describe('session()', function(){
   })
 
   it('should not save with bogus req.sessionID', function (done) {
-    var store = new session.MemoryStore()
+    var store = new MemoryStore()
     var server = createServer({ store: store }, function (req, res) {
       req.sessionID = function () {}
       req.session.test1 = 1
@@ -295,7 +299,7 @@ describe('session()', function(){
 
   describe('when response ended', function () {
     it('should have saved session', function (done) {
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store }, function (req, res) {
         req.session.hit = true
         res.end('session saved')
@@ -310,7 +314,7 @@ describe('session()', function(){
     })
 
     it('should have saved session even with empty response', function (done) {
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store }, function (req, res) {
         req.session.hit = true
         res.setHeader('Content-Length', '0')
@@ -325,7 +329,7 @@ describe('session()', function(){
     })
 
     it('should have saved session even with multi-write', function (done) {
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store }, function (req, res) {
         req.session.hit = true
         res.setHeader('Content-Length', '12')
@@ -342,7 +346,7 @@ describe('session()', function(){
     })
 
     it('should have saved session even with non-chunked response', function (done) {
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store }, function (req, res) {
         req.session.hit = true
         res.setHeader('Content-Length', '13')
@@ -358,7 +362,7 @@ describe('session()', function(){
     })
 
     it('should have saved session with updated cookie expiration', function (done) {
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ cookie: { maxAge: min }, store: store }, function (req, res) {
         req.session.user = 'bob'
         res.end(req.session.id)
@@ -398,7 +402,7 @@ describe('session()', function(){
   describe('when sid not in store', function () {
     it('should create a new session', function (done) {
       var count = 0
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store }, function (req, res) {
         req.session.num = req.session.num || ++count
         res.end('session ' + req.session.num)
@@ -421,7 +425,7 @@ describe('session()', function(){
 
     it('should have a new sid', function (done) {
       var count = 0
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store }, function (req, res) {
         req.session.num = req.session.num || ++count
         res.end('session ' + req.session.num)
@@ -447,7 +451,7 @@ describe('session()', function(){
 
   describe('when sid not properly signed', function () {
     it('should generate new session', function (done) {
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store, key: 'sessid' }, function (req, res) {
         var isnew = req.session.active === undefined
         req.session.active = true
@@ -471,7 +475,7 @@ describe('session()', function(){
     })
 
     it('should not attempt fetch from store', function (done) {
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store, key: 'sessid' }, function (req, res) {
         var isnew = req.session.active === undefined
         req.session.active = true
@@ -498,7 +502,7 @@ describe('session()', function(){
   describe('when session expired in store', function () {
     it('should create a new session', function (done) {
       var count = 0
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store, cookie: { maxAge: 5 } }, function (req, res) {
         req.session.num = req.session.num || ++count
         res.end('session ' + req.session.num)
@@ -521,7 +525,7 @@ describe('session()', function(){
 
     it('should have a new sid', function (done) {
       var count = 0
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store, cookie: { maxAge: 5 } }, function (req, res) {
         req.session.num = req.session.num || ++count
         res.end('session ' + req.session.num)
@@ -545,7 +549,7 @@ describe('session()', function(){
 
     it('should not exist in store', function (done) {
       var count = 0
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store, cookie: { maxAge: 5 } }, function (req, res) {
         req.session.num = req.session.num || ++count
         res.end('session ' + req.session.num)
@@ -570,7 +574,7 @@ describe('session()', function(){
   describe('when session without cookie property in store', function () {
     it('should pass error from inflate', function (done) {
       var count = 0
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store }, function (req, res) {
         req.session.num = req.session.num || ++count
         res.end('session ' + req.session.num)
@@ -882,7 +886,7 @@ describe('session()', function(){
   describe('propagateTouch option', function () {
     it('defaults to false', function (done) {
       var called = false;
-      var store = new session.MemoryStore();
+      var store = new MemoryStore();
       store.touch = function touch(sid, sess, callback) { called = true; defer(callback); };
       var server = createServer({ store: store }, function (req, res) {
         assert(!called);
@@ -897,7 +901,7 @@ describe('session()', function(){
     });
 
     it('does not call store.touch() if unimplemented', function (done) {
-      var store = new session.MemoryStore();
+      var store = new MemoryStore();
       store.touch = null;
       var server = createServer({ propagateTouch: true, store: store }, function (req, res) {
         req.session.modified = true;
@@ -910,7 +914,7 @@ describe('session()', function(){
     });
 
     it('calls store.touch() if implemented', function (done) {
-      var store = new session.MemoryStore();
+      var store = new MemoryStore();
       var called = false;
       store.touch = function touch(sid, sess, callback) { called = true; defer(callback); };
       var server = createServer({ propagateTouch: true, store: store }, function (req, res) {
@@ -926,7 +930,7 @@ describe('session()', function(){
     });
 
     it('waits for store.touch() to complete', function (done) {
-      var store = new session.MemoryStore();
+      var store = new MemoryStore();
       var called = false;
       store.touch = function touch(sid, sess, callback) {
         setTimeout(function () { called = true; callback(); }, 100);
@@ -944,7 +948,7 @@ describe('session()', function(){
     });
 
     it('passes back store.touch() error', function (done) {
-      var store = new session.MemoryStore();
+      var store = new MemoryStore();
       store.touch = function touch(sid, sess, callback) { defer(callback, new Error('boom!')); };
       var server = createServer({ propagateTouch: true, store: store }, function (req, res) {
         req.session.modified = true;
@@ -970,7 +974,7 @@ describe('session()', function(){
     });
 
     it('suppresses automatic store.touch()', function (done) {
-      var store = new session.MemoryStore();
+      var store = new MemoryStore();
       var calls = 0;
       store.touch = function touch(sid, sess, callback) { ++calls; defer(callback); };
       var doTouch = false;
@@ -1018,7 +1022,7 @@ describe('session()', function(){
 
     it('always calls store.touch() when saveUninitialized=true', function (done) {
       var called = false;
-      var store = new session.MemoryStore();
+      var store = new MemoryStore();
       store.touch = function touch(sid, sess, callback) { called = true; defer(callback); };
       var server = createServer({
         propagateTouch: true,
@@ -1037,7 +1041,7 @@ describe('session()', function(){
 
     it('calls store.touch() iff modified when saveUninitialized=false', function (done) {
       var called = false;
-      var store = new session.MemoryStore();
+      var store = new MemoryStore();
       store.touch = function touch(sid, sess, callback) { called = true; defer(callback); };
       var server = createServer({
         propagateTouch: true,
@@ -1100,7 +1104,7 @@ describe('session()', function(){
     });
 
     it('should not force cookie on uninitialized session if saveUninitialized option is set to false', function(done){
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store, rolling: true, saveUninitialized: false })
 
       request(server)
@@ -1111,7 +1115,7 @@ describe('session()', function(){
     });
 
     it('should force cookie and save uninitialized session if saveUninitialized option is set to true', function(done){
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store, rolling: true, saveUninitialized: true })
 
       request(server)
@@ -1122,7 +1126,7 @@ describe('session()', function(){
     });
 
     it('should force cookie and save modified session even if saveUninitialized option is set to false', function(done){
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store, rolling: true, saveUninitialized: false }, function (req, res) {
         req.session.user = 'bob'
         res.end()
@@ -1138,7 +1142,7 @@ describe('session()', function(){
 
   describe('resave option', function(){
     it('should default to true', function(done){
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store }, function (req, res) {
         req.session.user = 'bob'
         res.end()
@@ -1159,7 +1163,7 @@ describe('session()', function(){
 
     describe('when true', function () {
       it('should force save on unmodified session', function (done) {
-        var store = new session.MemoryStore()
+        var store = new MemoryStore()
         var server = createServer({ store: store, resave: true }, function (req, res) {
           req.session.user = 'bob'
           res.end()
@@ -1181,7 +1185,7 @@ describe('session()', function(){
 
     describe('when false', function () {
       it('should prevent save on unmodified session', function (done) {
-        var store = new session.MemoryStore()
+        var store = new MemoryStore()
         var server = createServer({ store: store, resave: false }, function (req, res) {
           req.session.user = 'bob'
           res.end()
@@ -1201,7 +1205,7 @@ describe('session()', function(){
       })
 
       it('should still save modified session', function (done) {
-        var store = new session.MemoryStore()
+        var store = new MemoryStore()
         var server = createServer({ resave: false, store: store }, function (req, res) {
           if (req.method === 'PUT') {
             req.session.token = req.url.substr(1)
@@ -1237,7 +1241,7 @@ describe('session()', function(){
       })
 
       it('should detect a "cookie" property as modified', function (done) {
-        var store = new session.MemoryStore()
+        var store = new MemoryStore()
         var server = createServer({ store: store, resave: false }, function (req, res) {
           req.session.user = req.session.user || {}
           req.session.user.name = 'bob'
@@ -1261,7 +1265,7 @@ describe('session()', function(){
 
       it('should pass session touch error', function (done) {
         var cb = after(2, done)
-        var store = new session.MemoryStore()
+        var store = new MemoryStore()
         var server = createServer({ store: store, resave: false }, function (req, res) {
           req.session.hit = true
           res.end('session saved')
@@ -1292,7 +1296,7 @@ describe('session()', function(){
 
   describe('saveUninitialized option', function(){
     it('should default to true', function(done){
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store })
 
       request(server)
@@ -1303,7 +1307,7 @@ describe('session()', function(){
     });
 
     it('should force save of uninitialized session', function(done){
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store, saveUninitialized: true })
 
       request(server)
@@ -1314,7 +1318,7 @@ describe('session()', function(){
     });
 
     it('should prevent save of uninitialized session', function(done){
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store, saveUninitialized: false })
 
       request(server)
@@ -1325,7 +1329,7 @@ describe('session()', function(){
     });
 
     it('should still save modified session', function(done){
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store, saveUninitialized: false }, function (req, res) {
         req.session.count = req.session.count || 0
         req.session.count++
@@ -1341,7 +1345,7 @@ describe('session()', function(){
 
     it('should pass session save error', function (done) {
       var cb = after(2, done)
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store, saveUninitialized: true }, function (req, res) {
         res.end('session saved')
       })
@@ -1363,7 +1367,7 @@ describe('session()', function(){
 
     it('should prevent uninitialized session from being touched', function (done) {
       var cb = after(1, done)
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ saveUninitialized: false, store: store, cookie: { maxAge: min } }, function (req, res) {
         res.end()
       })
@@ -1397,7 +1401,7 @@ describe('session()', function(){
       })
 
       it('should sign cookies with first element', function (done) {
-        var store = new session.MemoryStore();
+        var store = new MemoryStore();
 
         var server1 = createServer({ secret: ['keyboard cat', 'nyan cat'], store: store }, function (req, res) {
           req.session.user = 'bob';
@@ -1421,7 +1425,7 @@ describe('session()', function(){
       });
 
       it('should read cookies using all elements', function (done) {
-        var store = new session.MemoryStore();
+        var store = new MemoryStore();
 
         var server1 = createServer({ secret: 'nyan cat', store: store }, function (req, res) {
           req.session.user = 'bob';
@@ -1452,7 +1456,7 @@ describe('session()', function(){
     });
 
     it('should default to keep', function(done){
-      var store = new session.MemoryStore();
+      var store = new MemoryStore();
       var server = createServer({ store: store }, function (req, res) {
         req.session.count = req.session.count || 0
         req.session.count++
@@ -1483,7 +1487,7 @@ describe('session()', function(){
     });
 
     it('should allow destroy on req.session = null', function(done){
-      var store = new session.MemoryStore();
+      var store = new MemoryStore();
       var server = createServer({ store: store, unset: 'destroy' }, function (req, res) {
         req.session.count = req.session.count || 0
         req.session.count++
@@ -1514,7 +1518,7 @@ describe('session()', function(){
     });
 
     it('should not set cookie if initial session destroyed', function(done){
-      var store = new session.MemoryStore();
+      var store = new MemoryStore();
       var server = createServer({ store: store, unset: 'destroy' }, function (req, res) {
         req.session = null
         res.end()
@@ -1535,7 +1539,7 @@ describe('session()', function(){
 
     it('should pass session destroy error', function (done) {
       var cb = after(2, done)
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store, unset: 'destroy' }, function (req, res) {
         req.session = null
         res.end('session destroyed')
@@ -1560,7 +1564,7 @@ describe('session()', function(){
   describe('res.end patch', function () {
     it('should correctly handle res.end/res.write patched prior', function (done) {
       function setup (req, res) {
-        utils.writePatch(res)
+        writePatch(res)
       }
 
       function respond (req, res) {
@@ -1576,7 +1580,7 @@ describe('session()', function(){
 
     it('should correctly handle res.end/res.write patched after', function (done) {
       function respond (req, res) {
-        utils.writePatch(res)
+        writePatch(res)
         req.session.hit = true
         res.write('hello, ')
         res.end('world')
@@ -1626,7 +1630,7 @@ describe('session()', function(){
 
   describe('req.session', function(){
     it('should persist', function(done){
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store }, function (req, res) {
         req.session.count = req.session.count || 0
         req.session.count++
@@ -1705,7 +1709,7 @@ describe('session()', function(){
     });
 
     it('should not be set if store is disconnected', function (done) {
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store }, function (req, res) {
         res.end(typeof req.session)
       })
@@ -1719,7 +1723,7 @@ describe('session()', function(){
     })
 
     it('should be set when store reconnects', function (done) {
-      var store = new session.MemoryStore()
+      var store = new MemoryStore()
       var server = createServer({ store: store }, function (req, res) {
         res.end(typeof req.session)
       })
@@ -1823,7 +1827,7 @@ describe('session()', function(){
       })
 
       it('should error is session missing', function (done) {
-        var store = new session.MemoryStore()
+        var store = new MemoryStore()
         var server = createServer({ store: store }, function (req, res) {
           if (req.url === '/') {
             req.session.active = true
@@ -1852,7 +1856,7 @@ describe('session()', function(){
       })
 
       it('should not override an overriden `reload` in case of errors',  function (done) {
-        var store = new session.MemoryStore()
+        var store = new MemoryStore()
         var server = createServer({ store: store, resave: false }, function (req, res) {
           if (req.url === '/') {
             req.session.active = true
@@ -1897,7 +1901,7 @@ describe('session()', function(){
 
     describe('.save()', function () {
       it('should save session to store', function (done) {
-        var store = new session.MemoryStore()
+        var store = new MemoryStore()
         var server = createServer({ store: store }, function (req, res) {
           req.session.hit = true
           req.session.save(function (err) {
@@ -1915,7 +1919,7 @@ describe('session()', function(){
       })
 
       it('should prevent end-of-request save', function (done) {
-        var store = new session.MemoryStore()
+        var store = new MemoryStore()
         var server = createServer({ store: store }, function (req, res) {
           req.session.hit = true
           req.session.save(function (err) {
@@ -1938,7 +1942,7 @@ describe('session()', function(){
       })
 
       it('should prevent end-of-request save on reloaded session', function (done) {
-        var store = new session.MemoryStore()
+        var store = new MemoryStore()
         var server = createServer({ store: store }, function (req, res) {
           req.session.hit = true
           req.session.reload(function () {
@@ -1964,7 +1968,7 @@ describe('session()', function(){
 
       describe('when saveUninitialized is false', function () {
         it('should prevent end-of-request save', function (done) {
-          var store = new session.MemoryStore()
+          var store = new MemoryStore()
           var server = createServer({ saveUninitialized: false, store: store }, function (req, res) {
             req.session.hit = true
             req.session.save(function (err) {
@@ -1990,7 +1994,7 @@ describe('session()', function(){
 
     describe('.touch()', function () {
       it('should reset session expiration', function (done) {
-        var store = new session.MemoryStore()
+        var store = new MemoryStore()
         var server = createServer({ resave: false, store: store, cookie: { maxAge: min } }, function (req, res) {
           req.session.hit = true
           req.session.touch()
@@ -2474,7 +2478,7 @@ describe('session()', function(){
     })
 
     it('should read from req.signedCookies', function(done){
-      var app = express()
+      const app = express()
         .use(cookieParser('keyboard cat'))
         .use(function(req, res, next){ delete req.headers.cookie; next() })
         .use(createSession())
@@ -2497,15 +2501,15 @@ describe('session()', function(){
   })
 })
 
-function cookie(res) {
-  var setCookie = res.headers['set-cookie'];
+function cookie(res: any) {
+  const setCookie = res.headers['set-cookie'];
   return (setCookie && setCookie[0]) || undefined;
 }
 
-function createServer (options, respond) {
-  var fn = respond
-  var opts = options
-  var server = http.createServer()
+const  createServer = (options:Options|null, respond?:any)=> {
+  let fn = respond
+  let opts:Options|null = options
+  let server = http.createServer()
 
   // setup, options, respond
   if (typeof arguments[0] === 'function') {
@@ -2518,14 +2522,14 @@ function createServer (options, respond) {
   return server.on('request', createRequestListener(opts, fn))
 }
 
-function createRequestListener(opts, fn) {
-  var _session = createSession(opts)
-  var respond = fn || end
+const createRequestListener = (opts:Options, fn: Function)=> {
+  let _session = createSession(opts)
+  let respond = fn || end
 
-  return function onRequest(req, res) {
-    var server = this
+  return function onRequest(this: any, req: any, res: { _header: any; statusCode: any; end: (arg0: any) => void }) {
+    const server = this
 
-    _session(req, res, function (err) {
+    _session(req, res, function (err: { status: number; message: any }) {
       if (err && !res._header) {
         res.statusCode = err.status || 500
         res.end(err.message)
@@ -2542,8 +2546,8 @@ function createRequestListener(opts, fn) {
   }
 }
 
-function createSession(opts) {
-  var options = opts || {}
+function createSession(opts?: { key?: string } | undefined) {
+  const options:Options = opts || {}
 
   if (!('cookie' in options)) {
     options.cookie = { maxAge: 60 * 1000 }
@@ -2556,17 +2560,17 @@ function createSession(opts) {
   return session(options)
 }
 
-function end(req, res) {
+function end(req:Request, res: any) {
   res.end()
 }
 
-function expires (res) {
-  var header = cookie(res)
-  return header && utils.parseSetCookie(header).expires
+function expires (res:any) {
+  const header = cookie(res)
+  return header && parseSetCookie(header).expires
 }
 
-function mountAt (path) {
-  return function (req, res) {
+const  mountAt = (path:string)=> {
+  return (req: any, res: any)=> {
     if (req.url.indexOf(path) === 0) {
       req.originalUrl = req.url
       req.url = req.url.slice(path.length)
@@ -2574,15 +2578,15 @@ function mountAt (path) {
   }
 }
 
-function shouldNotHaveHeader(header) {
-  return function (res) {
+function shouldNotHaveHeader(header: string) {
+  return function (res:any) {
     assert.ok(!(header.toLowerCase() in res.headers), 'should not have ' + header + ' header')
   }
 }
 
-function shouldNotSetSessionInStore(store) {
-  var _set = store.set
-  var count = 0
+function shouldNotSetSessionInStore(store:Store) {
+  const _set = store.set
+  let count = 0
 
   store.set = function set () {
     count++
@@ -2594,25 +2598,25 @@ function shouldNotSetSessionInStore(store) {
   }
 }
 
-function shouldSetCookie (name) {
-  return function (res) {
-    var header = cookie(res)
-    var data = header && utils.parseSetCookie(header)
+function shouldSetCookie (name:string) {
+  return function (res:string) {
+    const header = cookie(res)
+    const data = header && parseSetCookie(header)
     assert.ok(header, 'should have a cookie header')
     assert.strictEqual(data.name, name, 'should set cookie ' + name)
   }
 }
 
-function shouldSetCookieToDifferentSessionId (id) {
-  return function (res) {
+function shouldSetCookieToDifferentSessionId (id: string) {
+  return function (res:any) {
     assert.notStrictEqual(sid(res), id)
   }
 }
 
-function shouldSetCookieToExpireIn (name, delta) {
-  return function (res) {
-    var header = cookie(res)
-    var data = header && utils.parseSetCookie(header)
+function shouldSetCookieToExpireIn (name:string, delta:number) {
+  return function (res:any) {
+    const header = cookie(res)
+    const data = header && parseSetCookie(header)
     assert.ok(header, 'should have a cookie header')
     assert.strictEqual(data.name, name, 'should set cookie ' + name)
     assert.ok(('expires' in data), 'should set cookie with attribute Expires')
@@ -2621,30 +2625,30 @@ function shouldSetCookieToExpireIn (name, delta) {
   }
 }
 
-function shouldSetCookieToValue (name, val) {
-  return function (res) {
-    var header = cookie(res)
-    var data = header && utils.parseSetCookie(header)
+function shouldSetCookieToValue (name:string, val:string) {
+  return function (res:Response) {
+    const header = cookie(res)
+    const data = header && parseSetCookie(header)
     assert.ok(header, 'should have a cookie header')
     assert.strictEqual(data.name, name, 'should set cookie ' + name)
     assert.strictEqual(data.value, val, 'should set cookie ' + name + ' to ' + val)
   }
 }
 
-function shouldSetCookieWithAttribute (name, attrib) {
-  return function (res) {
-    var header = cookie(res)
-    var data = header && utils.parseSetCookie(header)
+function shouldSetCookieWithAttribute (name:string, attrib:string) {
+  return function (res:Response) {
+    const header = cookie(res)
+    const data = header && parseSetCookie(header)
     assert.ok(header, 'should have a cookie header')
     assert.strictEqual(data.name, name, 'should set cookie ' + name)
     assert.ok((attrib.toLowerCase() in data), 'should set cookie with attribute ' + attrib)
   }
 }
 
-function shouldSetCookieWithAttributeAndValue (name, attrib, value) {
-  return function (res) {
-    var header = cookie(res)
-    var data = header && utils.parseSetCookie(header)
+function shouldSetCookieWithAttributeAndValue (name:string, attrib:string, value:string) {
+  return function (res:Response) {
+    const header = cookie(res)
+    const data = header && parseSetCookie(header)
     assert.ok(header, 'should have a cookie header')
     assert.strictEqual(data.name, name, 'should set cookie ' + name)
     assert.ok((attrib.toLowerCase() in data), 'should set cookie with attribute ' + attrib)
@@ -2652,34 +2656,36 @@ function shouldSetCookieWithAttributeAndValue (name, attrib, value) {
   }
 }
 
-function shouldSetCookieWithoutAttribute (name, attrib) {
-  return function (res) {
-    var header = cookie(res)
-    var data = header && utils.parseSetCookie(header)
+function shouldSetCookieWithoutAttribute (name:string, attrib:string) {
+  return function (res:Response) {
+    const header = cookie(res)
+    const data = header && parseSetCookie(header)
     assert.ok(header, 'should have a cookie header')
     assert.strictEqual(data.name, name, 'should set cookie ' + name)
     assert.ok(!(attrib.toLowerCase() in data), 'should set cookie without attribute ' + attrib)
   }
 }
 
-function shouldSetSessionInStore (store, delay) {
-  var _set = store.set
-  var count = 0
+function shouldSetSessionInStore (store: { set: () => any }, delay: number | undefined) {
+  const _set = store.set
+  let count = 0
 
   store.set = function set () {
     count++
 
     if (!delay) {
+      // @ts-ignore
       return _set.apply(this, arguments)
     }
 
-    var args = new Array(arguments.length + 1)
+    const args = new Array(arguments.length + 1)
 
     args[0] = this
-    for (var i = 1; i < args.length; i++) {
+    for (let i = 1; i < args.length; i++) {
       args[i] = arguments[i - 1]
     }
 
+    // @ts-ignore
     setTimeout(_set.bind.apply(_set, args), delay)
   }
 
@@ -2688,10 +2694,10 @@ function shouldSetSessionInStore (store, delay) {
   }
 }
 
-function sid (res) {
-  var header = cookie(res)
-  var data = header && utils.parseSetCookie(header)
-  var value = data && unescape(data.value)
-  var sid = value && value.substring(2, value.indexOf('.'))
+function sid (res: Response) {
+  const header = cookie(res)
+  const data = header && parseSetCookie(header)
+  const value = data && unescape(data.value)
+  const sid = value && value.substring(2, value.indexOf('.'))
   return sid || undefined
 }

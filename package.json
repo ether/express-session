@@ -1,6 +1,7 @@
 {
   "name": "@etherpad/express-session",
   "version": "1.18.2",
+  "main": "dist/index.js",
   "description": "Simple session middleware for Express",
   "author": "TJ Holowaychuk <tj@vision-media.ca> (http://tjholowaychuk.com)",
   "contributors": [
@@ -23,6 +24,13 @@
     "uid-safe": "~2.1.5"
   },
   "devDependencies": {
+    "@types/cookie": "^0.5.1",
+    "@types/cookie-parser": "^1.4.3",
+    "@types/depd": "^1.1.32",
+    "@types/express": "^4.17.17",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^20.4.5",
+    "@types/supertest": "^2.0.12",
     "after": "0.8.2",
     "cookie-parser": "1.4.6",
     "eslint": "7.32.0",
@@ -30,7 +38,8 @@
     "express": "4.17.3",
     "mocha": "10.0.0",
     "nyc": "15.1.0",
-    "supertest": "6.2.3"
+    "supertest": "6.2.3",
+    "typescript": "^5.1.6"
   },
   "files": [
     "session/",
@@ -42,8 +51,9 @@
   },
   "scripts": {
     "lint": "eslint . && node ./scripts/lint-readme.js",
-    "test": "mocha --require test/support/env --check-leaks --bail --no-exit --reporter spec test/",
+    "test": "mocha --require dist/test/support/env --check-leaks --bail --no-exit --reporter spec dist/test/",
     "test-ci": "nyc --reporter=lcov --reporter=text npm test",
-    "test-cov": "nyc npm test"
+    "test-cov": "nyc npm test",
+    "build": "npx tsc"
   }
 }
