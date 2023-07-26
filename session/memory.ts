@@ -49,7 +49,7 @@ class MemoryStore extends Store {
    * @param {function} callback
    * @public
    */
-  all(callback: DerefFunctionType) {
+  all = (callback: DerefFunctionType) =>{
     const sessionIds = Object.keys(this.sessions)
     const sessions = Object.create(null)
 
@@ -70,7 +70,7 @@ class MemoryStore extends Store {
    * @param {function} callback
    * @public
    */
-  clear(callback:DerefFunctionType) {
+  clear = (callback:DerefFunctionType) =>{
     this.sessions = Object.create(null)
     callback && defer(callback)
   }
@@ -81,7 +81,7 @@ class MemoryStore extends Store {
    * @param callback
    * @public
    */
-  destroy(sessionId: string, callback:DerefFunctionType) {
+  destroy = (sessionId: string, callback:DerefFunctionType) =>{
     delete this.sessions[sessionId]
     callback && defer(callback)
   }
@@ -92,7 +92,7 @@ class MemoryStore extends Store {
    * @param {function} callback
    * @public
    */
-  get(sessionId: string, callback:DerefFunctionType) {
+  get = (sessionId: string, callback:DerefFunctionType) =>{
     defer(callback, null, this.getSession.call(this, sessionId))
   }
 
@@ -104,7 +104,7 @@ class MemoryStore extends Store {
    * @param {function} callback
    * @public
    */
-  set(sessionId: string, session:any, callback:DerefFunctionType) {
+  set = (sessionId: string|number, session:any, callback:DerefFunctionType)=> {
     this.sessions[sessionId] = JSON.stringify(session)
     callback && defer(callback)
   }
@@ -116,7 +116,7 @@ class MemoryStore extends Store {
    * @public
    */
 
-  length(callback: DerefFunctionType) {
+  length = (callback: DerefFunctionType) =>{
     this.all(function (err, sessions) {
       if (err) return callback(err)
       callback(null, Object.keys(sessions).length)
@@ -131,7 +131,7 @@ class MemoryStore extends Store {
    * @param {function} callback
    * @public
    */
-  touch(sessionId: string, session: any, callback:DerefFunctionType) {
+  touch = (sessionId: string, session: any, callback:DerefFunctionType) =>{
     const currentSession = this.getSession.call(this, sessionId)
 
     if (currentSession) {
@@ -147,7 +147,7 @@ class MemoryStore extends Store {
    * Get session from the store.
    * @private
    */
-  private getSession(sessionId: string) {
+  getSession = (sessionId: string) =>{
     let sess = this.sessions[sessionId]
 
     if (!sess) {

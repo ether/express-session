@@ -74,7 +74,7 @@ const defer:DerefFunctionType = typeof setImmediate === 'function'
  * @public
  */
 
-export const session = (options:Options): Express=> {
+export let session = (options:Options): Express=> {
   const opts = options || {}
 
   // get the cookie options
@@ -171,7 +171,7 @@ export const session = (options:Options): Express=> {
     storeReady = true
   })
 
-  return function session(req:Request, res:any, next:Function) {
+  return (req:Request, res:any, next:Function)=> {
     // self-awareness
     if (req.session) {
       next()
@@ -187,6 +187,7 @@ export const session = (options:Options): Express=> {
     }
 
     // pathname mismatch
+    console.log(">",parseUrl.original(req),"<")
     const originalPath = parseUrl.original(req).pathname || '/'
     if (originalPath.indexOf(cookieOptions.path || '/') !== 0)
       return next();
@@ -226,7 +227,7 @@ export const session = (options:Options): Express=> {
     const cookieId = req.sessionID = getcookie(req, name, secrets);
 
     // set-cookie
-    onHeaders(res, function(){
+    onHeaders(res, ()=>{
       if (!req.session) {
         debug.log('no session');
         return
@@ -246,13 +247,13 @@ export const session = (options:Options): Express=> {
 
       // set cookie
       setcookie(res, name, req.sessionID, secrets[0], req.session.cookie.data);
-    });
+    })
 
     // proxy end() to commit the session
     const _end = res.end;
     const _write = res.write;
     let ended = false;
-    res.end = function end(chunk: string | any[] | null|Buffer.Buffer, encoding: undefined) {
+    res.end = (chunk: string | any[] | null|Buffer.Buffer, encoding: undefined)=> {
       if (ended) {
         return false;
       }
@@ -272,7 +273,7 @@ export const session = (options:Options): Express=> {
         _end.call(res);
       }
 
-      function writetop() {
+       const writetop = ()=> {
         if (!sync) {
           return ret;
         }
@@ -313,7 +314,7 @@ export const session = (options:Options): Express=> {
       if (shouldDestroy(req)) {
         // destroy session
         debug.log('destroying');
-        store.destroy(req.sessionID, function ondestroy(err:Error) {
+        store.destroy(req.sessionID,  (err:Error)=> {
           if (err) {
             defer(next, err);
           }
@@ -334,13 +335,13 @@ export const session = (options:Options): Express=> {
       autoTouch();
 
       if (shouldSave(req)) {
-        req.session.save(function onsave(err:Error) {
+        req.session.save((err:Error) =>{
           if (err) {
             defer(next, err);
           }
 
           writeend();
-        });
+        })
 
         return writetop();
       } else if (storeImplementsTouch && shouldTouch(req)) {
@@ -359,7 +360,7 @@ export const session = (options:Options): Express=> {
       }
 
       return _end.call(res, chunk, encoding);
-    };
+    }
 
     // generate the session
     function generate() {
@@ -405,7 +406,7 @@ export const session = (options:Options): Express=> {
 
       function save() {
         debug.log('saving %s', sess.id);
-        savedHash = hash();
+        savedHash = hash(this);
         _save.apply(this, arguments);
       }
 
@@ -620,10 +621,11 @@ function getcookie(req:any, name:string, secrets:string[]) {
 
 function hash(sess:Session): string {
   // serialize
-  delete sess.req
-  const str = JSON.stringify(sess, function (key, val) {
+  let cloned_hash = Object.assign({}, sess);
+  delete cloned_hash.req
+  const str = JSON.stringify(cloned_hash, function (key, val) {
     // ignore sess.cookie property
-    if (key === 'cookie') {
+    if (this === cloned_hash && key === 'cookie') {
       return
     }
 

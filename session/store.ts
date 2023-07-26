@@ -16,6 +16,7 @@
 import Cookie, {Request} from './cookie';
 import {EventEmitter} from 'events';
 import Session from './session';
+import {Http2ServerRequest} from "http2";
 
 
 /**

@@ -67,7 +67,7 @@ class Session {
    * @return {Session} for chaining
    * @api public
    */
-  resetMaxAge(): Session {
+  resetMaxAge = (): Session =>{
     if (this.cookie instanceof Cookie) {
       this.cookie.maxAge = this.cookie.originalMaxAge as number;
     }
@@ -97,8 +97,10 @@ class Session {
    * @return {Session} for chaining
    * @api public
    */
-  save(this: any, fn: any): Session{
-    this.req.sessionStore.set(this.id, this, fn || function(){});
+  save = (fn?: any): Session => {
+    // @ts-ignore
+    console.log(this.sessionStore)
+    this.req.sessionStore!.set(this.id as any, this, fn || function(){});
     return this;
   }
 
@@ -113,13 +115,15 @@ class Session {
    * @return {Session} for chaining
    * @api public
    */
-  reload(this: any, fn: (arg0?: Error) => void): Session{
+  reload = (fn: (arg0?: Error) => void): Session=>{
     const req = this.req
     const store = this.req.sessionStore
 
+    // @ts-ignore
     store.get(this.id, function(err:Error, sess:any){
       if (err) return fn(err);
       if (!sess) return fn(new Error('failed to load session'));
+      // @ts-ignore
       store.createSession(req, sess);
       fn();
     });
@@ -133,7 +137,7 @@ class Session {
    * @return {Session} for chaining
    * @api public
    */
-  destroy(fn: DerefFunctionType): Session{
+  destroy = (fn: DerefFunctionType): Session=>{
     delete this.req.session;
     this.req.sessionStore!.destroy(this.id as string, fn);
     return this;
@@ -145,8 +149,9 @@ class Session {
    * @return {Session} for chaining
    * @api public
    */
-  regenerate(this: any, fn: any): Session{
-    this.req.sessionStore.regenerate(this.req, fn);
+  regenerate = (fn: any): Session=>{
+    // @ts-ignore
+    this.req.sessionStore!.regenerate(this.req, fn);
     return this;
   }
 }
