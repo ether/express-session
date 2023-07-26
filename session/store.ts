@@ -23,7 +23,7 @@ import Session from './session';
  * @public
  */
 
-abstract class Store extends EventEmitter{
+abstract class Store extends EventEmitter {
 
   protected constructor() {
     super();
