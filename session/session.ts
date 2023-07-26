@@ -15,8 +15,8 @@
 /* istanbul ignore next */
 
 import Cookie, {Request} from "./cookie";
-import Store from "./store";
 import MemoryStore, {DerefFunctionType} from "./memory";
+import {Http2ServerRequest} from "http2";
 
 const defer = typeof setImmediate === 'function'
   ? setImmediate
@@ -36,13 +36,13 @@ const defer = typeof setImmediate === 'function'
  * @api private
  */
 
-
 class Session {
-  req: { value: Request | undefined, session?:Session, sessionStore?:MemoryStore }
+  req: { value: Http2ServerRequest | undefined, session?:Session, sessionStore?:MemoryStore }
   id: { value: string }|string
   cookie: Cookie | undefined
 
   constructor(req?: Request, data?: object) {
+    // @ts-ignore
     this.req = {value: req}
     this.id = {
       value: req!.sessionID as string
@@ -83,7 +83,7 @@ class Session {
    * @return {Session} for chaining
    * @api public
    */
-  touch(fn?: DerefFunctionType): Session{
+  touch = (fn?: DerefFunctionType): Session=>{
     this.resetMaxAge()
     if (fn) defer(fn)
     return this
