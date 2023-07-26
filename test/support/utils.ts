@@ -32,17 +32,16 @@ export const  writePatch =(res: Response)=> {
   const _write = res.write
   let ended = false
 
-  res.end = function end () {
+  res.end = () => {
     ended = true
-    return _end.apply(this, arguments)
+    return _end.apply(this, res)
   }
 
-  res.write = function write () {
+  res.write = () => {
     if (ended) {
       throw new Error('write after end')
     }
 
-    // @ts-ignore
-    return _write.apply(this, arguments)
+    return _write.apply(this, [])
   }
 }

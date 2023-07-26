@@ -105,6 +105,7 @@ class MemoryStore extends Store {
    * @public
    */
   set = (sessionId: string|number, session:any, callback:DerefFunctionType)=> {
+    delete session.req.value
     this.sessions[sessionId] = JSON.stringify(session)
     callback && defer(callback)
   }

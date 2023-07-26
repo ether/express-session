@@ -81,15 +81,15 @@ describe('session()', function(){
 
   it('should load session from cookie sid', function (done) {
     let count = 0
-    const server = createServer(null, function (req: Request, res: Response) {
-      req.session!.num = req.session!.num || ++count
+    const server = createServer(null,  (req: Request, res: Response)=> {
+      req.session!.num = req.session.num || ++count
       res.end('session ' + req.session.num)
-    });
+    })
 
     request(server)
     .get('/')
     .expect(shouldSetCookie('connect.sid'))
-    .expect(200, 'session 1', function (err, res) {
+    .expect(200, 'session 1',  (err, res)=> {
       if (err) return done(err)
       request(server)
       .get('/')
@@ -2570,7 +2570,7 @@ const createSession = (opts?: Options)=> {
     options.secret = 'keyboard cat'
   }
 
-  return session(opts)
+  return session(options)
 }
 
 function end(req:Request, res: any) {
@@ -2611,9 +2611,10 @@ function shouldNotSetSessionInStore(store:any) {
   }
 }
 
-function shouldSetCookie (name:string) {
-  return function (res:string) {
+const shouldSetCookie = (name:string) => {
+  return (res:string)=> {
     const header = cookie(res)
+    console.log(header)
     const data = header && parseSetCookie(header)
     assert.ok(header, 'should have a cookie header')
     assert.strictEqual(data.name, name, 'should set cookie ' + name)

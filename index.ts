@@ -74,15 +74,15 @@ const defer:DerefFunctionType = typeof setImmediate === 'function'
  * @public
  */
 
-export let session = (options:Options): Express=> {
+export const session = (options:Options): Express=> {
   const opts = options || {}
+
 
   // get the cookie options
   const cookieOptions = opts.cookie || {}
 
   // get the session id generate function
   const generateId = opts.genid || generateSessionId
-
   // get the session cookie name
   const name = opts.name || opts.key || 'connect.sid'
 
@@ -150,7 +150,7 @@ export let session = (options:Options): Express=> {
   }
 
   // generates the new session
-  store.generate = function(req:Request){
+  store.generate = (req:Request)=>{
     req.sessionID = generateId(req);
     req.session = new Session(req);
     req.session.cookie = new Cookie(cookieOptions);
@@ -158,7 +158,7 @@ export let session = (options:Options): Express=> {
     if (cookieOptions.secure === 'auto') {
       req.session.cookie.secure = issecure(req, trustProxy);
     }
-  };
+  }
 
   const storeImplementsTouch = typeof store.touch === 'function';
 
@@ -187,16 +187,17 @@ export let session = (options:Options): Express=> {
     }
 
     // pathname mismatch
-    console.log(">",parseUrl.original(req),"<")
     const originalPath = parseUrl.original(req).pathname || '/'
     if (originalPath.indexOf(cookieOptions.path || '/') !== 0)
       return next();
 
     // ensure a secret is available or bail
+    //FIXME It has no secret
     if (!secret && !req.secret) {
       next(new Error('secret option required for sessions'));
       return;
     }
+
 
     // backwards compatibility for signed cookies
     // req.secret is passed from the cookie parser middleware
@@ -263,7 +264,7 @@ export let session = (options:Options): Express=> {
       let ret: boolean;
       let sync = true;
 
-      function writeend() {
+      const writeend = ()=> {
         if (sync) {
           ret = _end.call(res, chunk, encoding);
           sync = false;
@@ -363,7 +364,7 @@ export let session = (options:Options): Express=> {
     }
 
     // generate the session
-    function generate() {
+     const generate = ()=> {
       store.generate(req);
       originalId = req.sessionID;
       originalHash = hash(req.session);
@@ -371,7 +372,7 @@ export let session = (options:Options): Express=> {
     }
 
     // inflate the session
-    function inflate (req:Request, sess:Session) {
+    const inflate = (req:Request, sess:Session)=> {
       store.createSession(req, sess)
       originalId = req.sessionID
       originalHash = hash(sess)
@@ -380,7 +381,7 @@ export let session = (options:Options): Express=> {
         savedHash = originalHash
       }
 
-      wrapmethods(req.session as Session)
+      wrapmethods(req.session)
     }
 
     function rewrapmethods (sess:Session, callback:Function) {
@@ -448,22 +449,22 @@ export let session = (options:Options): Express=> {
     }
 
     // check if session has been modified
-    function isModified(sess:Session) {
+    const isModified = (sess:Session) => {
       return originalId !== sess.id || originalHash !== hash(sess);
     }
 
     // check if session has been saved
-    function isSaved(sess:Session) {
+    const isSaved = (sess:Session) =>{
       return originalId === sess.id && savedHash === hash(sess);
     }
 
     // determine if session should be destroyed
-    function shouldDestroy(req:any) {
+    const shouldDestroy = (req:any) =>{
       return req.sessionID && unsetDestroy && req.session == null;
     }
 
     // determine if session should be saved to store
-    function shouldSave(req:Request) {
+    const shouldSave = (req:Request) =>{
       // cannot set cookie without a session ID
       if (typeof req.sessionID !== 'string') {
         debug.log('session ignored because of bogus req.sessionID %o', req.sessionID);
@@ -476,7 +477,7 @@ export let session = (options:Options): Express=> {
     }
 
     // determine if session should be touched
-    function shouldTouch(req:Request) {
+    const shouldTouch = (req:Request) =>{
       // cannot set cookie without a session ID
       if (typeof req.sessionID !== 'string') {
         debug.log('session ignored because of bogus req.sessionID %o', req.sessionID);
@@ -487,7 +488,7 @@ export let session = (options:Options): Express=> {
     }
 
     // determine if cookie should be set on response
-    function shouldSetCookie(req:any) {
+    const  shouldSetCookie = (req:any) =>{
       // cannot set cookie without a session ID
       if (typeof req.sessionID !== 'string') {
         return false
