@@ -384,8 +384,8 @@ export const session = (options:Options): Express=> {
       wrapmethods(req.session)
     }
 
-    function rewrapmethods (sess:Session, callback:Function) {
-      return function () {
+     const rewrapmethods = (sess:Session, callback:Function) =>{
+      return  ()=> {
         if (req.session !== sess) {
           wrapmethods(req.session)
         }
@@ -400,15 +400,20 @@ export const session = (options:Options): Express=> {
       const _save = sess.save;
       const _touch = sess.touch;
 
-      function reload(callback:Function) {
+      const reload = (callback:Function) =>{
         debug.log('reloading %s', sess.id)
         _reload.call(this, rewrapmethods(this, callback))
       }
 
-      function save() {
-        debug.log('saving %s', sess.id);
+      const save = (...args) =>{
+        debug.log('saving %s', sess.id.value);
         savedHash = hash(this);
-        _save.apply(this, arguments);
+        let realSession: {}
+        realSession = Object.defineProperty({},"cookie",{
+          value: sess.cookie,
+          writable: false
+        })
+        _save.apply(realSession, args);
       }
 
       const touch = (callback: (err: any) => void) => {
@@ -488,7 +493,7 @@ export const session = (options:Options): Express=> {
     }
 
     // determine if cookie should be set on response
-    const  shouldSetCookie = (req:any) =>{
+    const  shouldSetCookie = (req: any) =>{
       // cannot set cookie without a session ID
       if (typeof req.sessionID !== 'string') {
         return false
@@ -509,7 +514,7 @@ export const session = (options:Options): Express=> {
 
     // generate the session object
     debug.log('fetching %s', req.sessionID)
-    store.get(req.sessionID, function(err:any, sess:Session){
+    store.get(req.sessionID, (err:any, sess:Session)=>{
       // error handling
       if (err && err.code !== 'ENOENT') {
         debug.log('error %j', err)

@@ -99,7 +99,7 @@ class Session {
    */
   save = (fn?: any): Session => {
     // @ts-ignore
-    this.req.value.sessionStore!.set(this.id as any, this, fn || function(){});
+    this.req.value.sessionStore!.set(this.id.value, this, fn || function(){});
     return this;
   }
 
