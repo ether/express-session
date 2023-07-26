@@ -14,7 +14,9 @@
 
 /* istanbul ignore next */
 
-import {Request} from "./cookie";
+import Cookie, {Request} from "./cookie";
+import Store from "./store";
+import MemoryStore, {DerefFunctionType} from "./memory";
 
 const defer = typeof setImmediate === 'function'
   ? setImmediate
@@ -29,22 +31,21 @@ const defer = typeof setImmediate === 'function'
 /**
  * Create a new `Session` with the given request and `data`.
  *
- * @param {IncomingRequest} req
+ * @param {Function} req
  * @param {Object} data
  * @api private
  */
 
 
 class Session {
-  req: Request | undefined;
-  id: { value: string };
-  cookie: any;
-  [key: string]: any;
-  constructor(req: Request, data: object) {
-    // @ts-ignore
-    this.req = {value: Request}
+  req: { value: Request | undefined, session?:Session, sessionStore?:MemoryStore }
+  id: { value: string }|string
+  cookie: Cookie | undefined
+
+  constructor(req?: Request, data?: object) {
+    this.req = {value: req}
     this.id = {
-        value: req.sessionID
+      value: req!.sessionID as string
     }
 
     if (typeof data === 'object' && data !== null) {
@@ -67,7 +68,7 @@ class Session {
    * @return {Session} for chaining
    * @api public
    */
-  touch(this: any, fn: ((...args: any[]) => void) & { bind: { apply: (arg0: any, arg1: IArguments) => Function; }; }): Session{
+  touch(fn?: ((...args: any[]) => void) & { bind: { apply: (arg0: any, arg1: IArguments) => Function; }; }): Session{
     this.resetMaxAge();
     if (fn) defer(fn);
     return this;
@@ -79,8 +80,10 @@ class Session {
    * @return {Session} for chaining
    * @api public
    */
-  resetMaxAge(this: any): void {
-    this.cookie.maxAge = this.cookie.originalMaxAge;
+  resetMaxAge(): Session {
+    if (this.cookie instanceof Cookie) {
+      this.cookie.maxAge = this.cookie.originalMaxAge as number;
+    }
     return this;
   }
 
@@ -127,9 +130,9 @@ class Session {
    * @return {Session} for chaining
    * @api public
    */
-  destroy(this: any, fn: Function): Session{
+  destroy(fn: DerefFunctionType): Session{
     delete this.req.session;
-    this.req.sessionStore.destroy(this.id, fn);
+    this.req.sessionStore!.destroy(this.id as string, fn);
     return this;
   }
   /**
@@ -143,23 +146,6 @@ class Session {
     this.req.sessionStore.regenerate(this.req, fn);
     return this;
   }
-}
-
-/**
- * Helper function for creating a method on a prototype.
- *
- * @param {Object} obj
- * @param {String} name
- * @param {Function} fn
- * @private
- */
-function defineMethod(obj: object, name: string, fn: Function) {
-  Object.defineProperty(obj, name, {
-    configurable: true,
-    enumerable: false,
-    value: fn,
-    writable: true
-  });
 }
 
 export default Session

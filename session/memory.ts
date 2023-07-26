@@ -29,18 +29,17 @@ const defer: DerefFunctionType = typeof setImmediate === 'function'
  * Module exports.
  */
 
-type DerefFunctionType = (...args: any) => void
+export type DerefFunctionType = (...args: any) => void
 
 
 /**
  * A session store in memory.
  * @public
  */
-class MemoryStore {
+class MemoryStore extends Store {
   private sessions: any;
   constructor() {
-    // @ts-ignore
-    Store.call(this)
+    super()
     this.sessions = Object.create(null)
   }
 
@@ -149,7 +148,7 @@ class MemoryStore {
    * @private
    */
   private getSession(sessionId: string) {
-    var sess = this.sessions[sessionId]
+    let sess = this.sessions[sessionId]
 
     if (!sess) {
       return
@@ -159,7 +158,7 @@ class MemoryStore {
     sess = JSON.parse(sess)
 
     if (sess.cookie) {
-      var expires = typeof sess.cookie.expires === 'string'
+      const expires = typeof sess.cookie.expires === 'string'
           ? new Date(sess.cookie.expires)
           : sess.cookie.expires
 
@@ -173,8 +172,6 @@ class MemoryStore {
     return sess
   }
 }
-
-util.inherits(MemoryStore, Store)
 export default MemoryStore
 
 

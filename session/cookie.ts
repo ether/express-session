@@ -5,7 +5,6 @@
  * MIT Licensed
  */
 
-'use strict';
 
 /**
  * Module dependencies.
@@ -13,20 +12,21 @@
 
 import cookie from 'cookie';
 import Session from "./session";
-const deprecate = require('depd')('express-session')
+import Store from "./store";
+import deprecate from "depd";
 
 
 export type Request = {
-  secret: string;
-  sessionID: string;
+  sessionStore: Store;
+  secret?: string;
+  sessionID?: string;
   session?: Session
-  url: string | any[];
-  originalUrl: any
+  url?: string | any[];
+  originalUrl?: any,
+  value?: Request
 }
 
-export type Options = {
-  [key: string]:string|undefined|any
-}|Function
+export type Options = any
 
 /**
  * Initialize a new `Cookie` with the given `options`.
@@ -40,7 +40,7 @@ export default class Cookie {
   readonly httpOnly: boolean;
   private readonly _maxAge: number | null;
   readonly path: string;
-  private originalMaxAge: number;
+  originalMaxAge: number|undefined = undefined;
   private _expires: Date | null;
   private secure: any;
   private domain: any;
@@ -63,7 +63,6 @@ export default class Cookie {
       }
     }
 
-    // @ts-ignore
     if (this.originalMaxAge === undefined || this.originalMaxAge === null) {
       this.originalMaxAge = this.maxAge
     }

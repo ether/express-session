@@ -14,9 +14,8 @@
 
 
 import Cookie, {Request} from './cookie';
-import EventEmitter from 'events';
+import {EventEmitter} from 'events';
 import Session from './session';
-import util from 'util';
 
 
 /**
@@ -24,22 +23,23 @@ import util from 'util';
  * @public
  */
 
-abstract class Store extends Session{
+abstract class Store extends EventEmitter{
 
+  protected constructor() {
+    super();
+  }
   /**
-   * Re-generate the given requests's session.
+   * Re-generate the given request's session.
    *
-   * @param {IncomingRequest} req
+   * @param {Function} req
    * @param fn
-   * @return {Function} fn
    * @api public
    */
-  // @ts-ignore
-  regenerate(req:Request, fn: Function): Function{
+  regenerate(req:Request, fn: Function){
     const self = this;
-    // @ts-ignore
-    this.destroy(req.sessionID, (err:Error)=>{
-        self.generate(req);
+    this.removeListener(req.sessionID!, (err:Error)=>{
+        // @ts-ignore
+      self.addListener(req);
         fn(err);
     })
   }
@@ -53,7 +53,7 @@ abstract class Store extends Session{
    */
   load(sid:string, fn:Function){
     const self = this;
-    this.get(sid, function(err: Error, sess:Session){
+    this.addListener(sid, function(err: Error, sess:Session){
       if (err) return fn(err);
       if (!sess) return fn();
       const req = { sessionID: sid, sessionStore: self };
@@ -63,14 +63,14 @@ abstract class Store extends Session{
   /**
    * Create session from JSON `sess` data.
    *
-   * @param {IncomingRequest} req
+   * @param {Function} req
    * @param {Object} sess
    * @return {Session}
    * @api private
    */
   createSession(req:Request, sess: Session): Session{
-    const expires = sess.cookie.expires
-    const originalMaxAge = sess.cookie.originalMaxAge
+    const expires = sess.cookie!.expires
+    const originalMaxAge = sess.cookie!.originalMaxAge
 
     sess.cookie = new Cookie(sess.cookie);
 
@@ -84,15 +84,7 @@ abstract class Store extends Session{
 
     req.session = new Session(req, sess);
     return req.session as any;
-  };
+  }
 }
-
-/**
- * Inherit from EventEmitter.
- */
-
-util.inherits(Store, EventEmitter)
-
-
 
 export default Store
