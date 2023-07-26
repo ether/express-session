@@ -187,9 +187,9 @@ export const session = (options:Options): Express=> {
     }
 
     // pathname mismatch
-    // @ts-ignore
     const originalPath = parseUrl.original(req).pathname || '/'
-    if (originalPath.indexOf(cookieOptions.path || '/') !== 0) return next();
+    if (originalPath.indexOf(cookieOptions.path || '/') !== 0)
+      return next();
 
     // ensure a secret is available or bail
     if (!secret && !req.secret) {
@@ -229,17 +229,17 @@ export const session = (options:Options): Express=> {
     onHeaders(res, function(){
       if (!req.session) {
         debug.log('no session');
-        return;
+        return
       }
 
       if (!shouldSetCookie(req)) {
-        return;
+        return
       }
 
       // only send secure cookies via https
       if (req.session.cookie.secure && !issecure(req, trustProxy)) {
         debug.log('not secured');
-        return;
+        return
       }
 
       autoTouch();
@@ -399,25 +399,25 @@ export const session = (options:Options): Express=> {
       const _touch = sess.touch;
 
       function reload(callback:Function) {
-        debug.log('reloading %s', this.id)
+        debug.log('reloading %s', sess.id)
         _reload.call(this, rewrapmethods(this, callback))
       }
 
       function save() {
-        debug.log('saving %s', this.id);
+        debug.log('saving %s', sess.id);
         savedHash = hash();
         _save.apply(this, arguments);
       }
 
       const touch = (callback: (err: any) => void) => {
-        debug.log('touching %s', this.id);
+        debug.log('touching %s', sess.id);
         const cb = callback || function (err) { if (err) throw err; };
         const touchStore = propagateTouch && storeImplementsTouch &&
             // Don't touch the store unless the session has been or will be written to the store.
             (saveUninitializedSession || isModified(this.session) || isSaved(this));
         _touch.call(this, touchStore ? (function (err: any) {
           if (err) return cb(err);
-          store.touch(this.id, this, cb);
+          store.touch(sess.id, this, cb);
           touchedStore = true; // Set synchronously regardless of success/failure.
         }).bind(this) : cb);
         touched = true; // Set synchronously regardless of success/failure.
@@ -489,28 +489,28 @@ export const session = (options:Options): Express=> {
     function shouldSetCookie(req:any) {
       // cannot set cookie without a session ID
       if (typeof req.sessionID !== 'string') {
-        return false;
+        return false
       }
 
       return cookieId !== req.sessionID
         ? saveUninitializedSession || isModified(req.session)
-        : rollingSessions || req.session.cookie.expires != null && isModified(req.session);
+        : rollingSessions || req.session.cookie.expires != null && isModified(req.session)
     }
 
     // generate a session if the browser doesn't send a sessionID
     if (!req.sessionID) {
-      debug.log('no SID sent, generating session');
+      debug.log('no SID sent, generating session')
       generate()
       next()
       return
     }
 
     // generate the session object
-    debug.log('fetching %s', req.sessionID);
+    debug.log('fetching %s', req.sessionID)
     store.get(req.sessionID, function(err:any, sess:Session){
       // error handling
       if (err && err.code !== 'ENOENT') {
-        debug.log('error %j', err);
+        debug.log('error %j', err)
         next(err)
         return
       }
@@ -541,7 +541,7 @@ export const session = (options:Options): Express=> {
  */
 
 function generateSessionId(sess:Session):string {
-  return uid.sync(24);
+  return uid.sync(24)
 }
 
 /**
@@ -552,23 +552,23 @@ function generateSessionId(sess:Session):string {
  */
 
 function getcookie(req:any, name:string, secrets:string[]) {
-  const header = req.headers.cookie;
-  let raw;
-  let val;
+  const header = req.headers.cookie
+  let raw
+  let val
 
   // read from cookie header
   if (header) {
-    let cookies = cookie.parse(header);
+    let cookies = cookie.parse(header)
 
-    raw = cookies[name];
+    raw = cookies[name]
 
     if (raw) {
       if (raw.substring(0, 2) === 's:') {
-        val = unsigncookie(raw.slice(2), secrets);
+        val = unsigncookie(raw.slice(2), secrets)
 
         if (val === false) {
-          debug.log('cookie signature invalid');
-          val = undefined;
+          debug.log('cookie signature invalid')
+          val = undefined
         }
       } else {
         debug.log('cookie unsigned')
@@ -578,7 +578,7 @@ function getcookie(req:any, name:string, secrets:string[]) {
 
   // back-compat read from cookieParser() signedCookies data
   if (!val && req.signedCookies) {
-    val = req.signedCookies[name];
+    val = req.signedCookies[name]
 
     if (val) {
       deprecate('cookie should be available in req.headers.cookie');
@@ -587,18 +587,18 @@ function getcookie(req:any, name:string, secrets:string[]) {
 
   // back-compat read from cookieParser() cookies data
   if (!val && req.cookies) {
-    raw = req.cookies[name];
+    raw = req.cookies[name]
 
     if (raw) {
       if (raw.substr(0, 2) === 's:') {
-        val = unsigncookie(raw.slice(2), secrets);
+        val = unsigncookie(raw.slice(2), secrets)
 
         if (val) {
-          deprecate('cookie should be available in req.headers.cookie');
+          deprecate('cookie should be available in req.headers.cookie')
         }
 
         if (val === false) {
-          debug.log('cookie signature invalid');
+          debug.log('cookie signature invalid')
           val = undefined;
         }
       } else {
@@ -619,7 +619,6 @@ function getcookie(req:any, name:string, secrets:string[]) {
  */
 
 function hash(sess:Session): string {
-  console.log(sess)
   // serialize
   const str = JSON.stringify(sess, function (key, val) {
     // ignore sess.cookie property

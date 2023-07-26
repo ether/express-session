@@ -37,12 +37,12 @@ export type Options = any
  */
 
 export default class Cookie {
-  readonly httpOnly: boolean;
+  httpOnly: boolean;
   private readonly _maxAge: number | null;
   readonly path: string;
   originalMaxAge: number|undefined = undefined;
   private _expires: Date | null;
-  private secure: any;
+  secure: any;
   private domain: any;
   private sameSite: any;
   constructor(options?: any) {

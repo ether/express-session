@@ -48,6 +48,7 @@ class Session {
       value: req!.sessionID as string
     }
 
+
     if (typeof data === 'object' && data !== null) {
       // merge data into this, ignoring prototype properties
       for (const prop in data) {
@@ -59,20 +60,6 @@ class Session {
     }
   }
 
-  /**
-   * Update reset `.cookie.maxAge` to prevent
-   * the cookie from expiring when the
-   * session is still active.
-   *
-   * @param {Function} fn optional done callback
-   * @return {Session} for chaining
-   * @api public
-   */
-  touch(fn?: ((...args: any[]) => void) & { bind: { apply: (arg0: any, arg1: IArguments) => Function; }; }): Session{
-    this.resetMaxAge();
-    if (fn) defer(fn);
-    return this;
-  }
 
   /**
    * Reset `.maxAge` to `.originalMaxAge`.
@@ -86,6 +73,22 @@ class Session {
     }
     return this;
   }
+
+  /**
+   * Update reset `.cookie.maxAge` to prevent
+   * the cookie from expiring when the
+   * session is still active.
+   *
+   * @param {Function} fn optional done callback
+   * @return {Session} for chaining
+   * @api public
+   */
+  touch(fn?: DerefFunctionType): Session{
+    this.resetMaxAge()
+    if (fn) defer(fn)
+    return this
+  }
+
 
   /**
    * Save the session data with optional callback `fn(err)`.
