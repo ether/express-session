@@ -213,7 +213,7 @@ describe('session()', function(){
     let count = 0
     let sid: string
     const store = new MemoryStore()
-    const server = createServer({ store: store }, function (req:Request, res:Response) {
+    const server = createServer({ store: store },  (req:Request, res:Response)=> {
       sid = req.session.id
       req.session.num = req.session.num || ++count
       res.end('session saved')
@@ -221,9 +221,9 @@ describe('session()', function(){
 
     request(server)
     .get('/')
-    .expect(200, 'session saved', function (err, res) {
+    .expect(200, 'session saved',  (err, res)=> {
       if (err) return done(err)
-      store.get(sid, function (err, sess) {
+      store.get(sid,  (err, sess)=> {
         if (err) return done(err)
         // save is reserved
         sess.save = 'nope'
