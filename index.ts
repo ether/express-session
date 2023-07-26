@@ -245,8 +245,8 @@ export const session = (options:Options): Express=> {
       }
 
       autoTouch();
-
       // set cookie
+
       setcookie(res, name, req.sessionID, secrets[0], req.session.cookie.data);
     })
 
@@ -293,7 +293,6 @@ export const session = (options:Options): Express=> {
         if (!isNaN(contentLength) && contentLength > 0) {
           // measure chunk
           chunk = !Buffer.Buffer.isBuffer(chunk)
-              //@ts-ignore
             ? Buffer.Buffer.from(chunk, encoding)
             : chunk;
           encoding = undefined;
@@ -306,7 +305,8 @@ export const session = (options:Options): Express=> {
           }
         }
 
-        ret = _write.call(res, chunk, encoding);
+        chunk.value ? ret = _write.call(res, chunk.value, encoding):ret = _write.call(res, chunk, encoding);
+
         sync = false;
 
         return ret;
@@ -359,7 +359,6 @@ export const session = (options:Options): Express=> {
 
         return writetop();
       }
-
       return _end.call(res, chunk, encoding);
     }
 
