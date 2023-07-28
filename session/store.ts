@@ -54,7 +54,7 @@ abstract class Store extends EventEmitter {
    */
   load(sid:string, fn:Function){
     const self = this;
-    this.addListener(sid, function(err: Error, sess:Session){
+    this.addListener(sid, (err: Error, sess:Session)=>{
       if (err) return fn(err);
       if (!sess) return fn();
       const req = { sessionID: sid, sessionStore: self };

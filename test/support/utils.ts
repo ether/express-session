@@ -27,21 +27,21 @@ export const parseSetCookie = (header:string) => {
   return cookie
 }
 
-export const  writePatch =(res: Response)=> {
-  const _end = res.end
-  const _write = res.write
-  let ended = false
+export function writePatch (res:any) {
+  var _end = res.end
+  var _write = res.write
+  var ended = false
 
-  res.end = () => {
+  res.end = function end () {
     ended = true
-    return _end.apply(this, res)
+    return _end.apply(this, arguments)
   }
 
-  res.write = () => {
+  res.write = function write () {
     if (ended) {
       throw new Error('write after end')
     }
 
-    return _write.apply(this, [])
+    return _write.apply(this, arguments)
   }
 }

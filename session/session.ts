@@ -17,10 +17,11 @@
 import Cookie, {Request} from "./cookie";
 import MemoryStore, {DerefFunctionType} from "./memory";
 import {Http2ServerRequest} from "http2";
+import {Func} from "mocha";
 
 const defer = typeof setImmediate === 'function'
   ? setImmediate
-  : function(fn: { bind: { apply: (arg0: any, arg1: IArguments) => Function; }; }){ process.nextTick(fn.bind.apply(fn, arguments)) }
+  : (...args: any)=>{process.nextTick(args[0].bind.apply(args[0], args))}
 
 /**
  * Expose Session.
@@ -68,9 +69,7 @@ class Session {
    * @api public
    */
   resetMaxAge = (): Session =>{
-    if (this.cookie instanceof Cookie) {
-      this.cookie.maxAge = this.cookie.originalMaxAge as number;
-    }
+    this.cookie!.maxAge = this.cookie!.originalMaxAge as number;
     return this;
   }
 
@@ -116,10 +115,16 @@ class Session {
    */
   reload = (fn: (arg0?: Error) => void): Session=>{
     const req = this.req
-    const store = this.req.sessionStore
+    const store = this.req.sessionStore as MemoryStore
+    let unwrappedId: string;
+    if (typeof this.id !== "string") {
+       unwrappedId = this.id.value
+    }
+    else{
+        unwrappedId = this.id
+    }
 
-    // @ts-ignore
-    store.get(this.id, function(err:Error, sess:any){
+    store.get(unwrappedId, function(err:Error, sess:any){
       if (err) return fn(err);
       if (!sess) return fn(new Error('failed to load session'));
       // @ts-ignore

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /*!
  * express-session
  * Copyright(c) 2010 Sencha Inc.
@@ -74,7 +73,7 @@ const defer:DerefFunctionType = typeof setImmediate === 'function'
  * @public
  */
 
-export const session = (options:Options): Express=> {
+export const session = (options:Options): (req: Request, res: any, next: Function) => any => {
   const opts = options || {}
 
 
@@ -187,7 +186,7 @@ export const session = (options:Options): Express=> {
     }
 
     // pathname mismatch
-    const originalPath = parseUrl.original(req).pathname || '/'
+    const originalPath = parseUrl.original(req as any)!.pathname || '/'
     if (originalPath.indexOf(cookieOptions.path || '/') !== 0)
       return next();
 
@@ -215,6 +214,7 @@ export const session = (options:Options): Express=> {
       let backup = propagateTouch;
       propagateTouch = false;
       try {
+        debug.log("Autotouching")
         req.session!.touch();
       } finally {
         propagateTouch = backup;
@@ -239,7 +239,7 @@ export const session = (options:Options): Express=> {
       }
 
       // only send secure cookies via https
-      if (req.session.cookie.secure && !issecure(req, trustProxy)) {
+      if (req.session.cookie&& req.session.cookie.secure && !issecure(req, trustProxy)) {
         debug.log('not secured');
         return
       }
@@ -247,7 +247,7 @@ export const session = (options:Options): Express=> {
       autoTouch();
       // set cookie
 
-      setcookie(res, name, req.sessionID, secrets[0], req.session.cookie.data);
+      setcookie(res, name, req.sessionID!, secrets[0], req.session.cookie!.data);
     })
 
     // proxy end() to commit the session
@@ -255,6 +255,7 @@ export const session = (options:Options): Express=> {
     const _write = res.write;
     let ended = false;
     res.end = (chunk: string | any[] | null|Buffer.Buffer, encoding: undefined)=> {
+      console.log(chunk)
       if (ended) {
         return false;
       }
@@ -293,7 +294,8 @@ export const session = (options:Options): Express=> {
         if (!isNaN(contentLength) && contentLength > 0) {
           // measure chunk
           chunk = !Buffer.Buffer.isBuffer(chunk)
-            ? Buffer.Buffer.from(chunk, encoding)
+              // @ts-ignore
+              ? Buffer.Buffer.from(chunk, encoding)
             : chunk;
           encoding = undefined;
 
@@ -305,7 +307,8 @@ export const session = (options:Options): Express=> {
           }
         }
 
-        chunk.value ? ret = _write.call(res, chunk.value, encoding):ret = _write.call(res, chunk, encoding);
+        // @ts-ignore
+         chunk.value ? ret = _write.call(res, chunk.value, encoding):ret = _write.call(res, chunk, encoding);
 
         sync = false;
 
@@ -336,7 +339,11 @@ export const session = (options:Options): Express=> {
       autoTouch();
 
       if (shouldSave(req)) {
+        console.log("touch it!!")
+
         req.session.save((err:Error) =>{
+
+          // FIXME
           if (err) {
             defer(next, err);
           }
@@ -348,7 +355,7 @@ export const session = (options:Options): Express=> {
       } else if (storeImplementsTouch && shouldTouch(req)) {
         // store implements touch method
         debug.log('touching');
-        store.touch(req.sessionID, req.session, function ontouch(err: Error) {
+        store.touch(req.sessionID, req.session,  (err:Error) =>{
           if (err) {
             defer(next, err);
           }
@@ -366,8 +373,8 @@ export const session = (options:Options): Express=> {
      const generate = ()=> {
       store.generate(req);
       originalId = req.sessionID;
-      originalHash = hash(req.session);
-      wrapmethods(req.session);
+      originalHash = hash(req.session!);
+      wrapmethods(req.session!);
     }
 
     // inflate the session
@@ -380,16 +387,18 @@ export const session = (options:Options): Express=> {
         savedHash = originalHash
       }
 
+      // @ts-ignore
       wrapmethods(req.session)
     }
 
-     const rewrapmethods = (sess:Session, callback:Function) =>{
+     const rewrapmethods = (...args:any[]) =>{
       return  ()=> {
-        if (req.session !== sess) {
+        if (req.session !== args[0]) {
+          // @ts-ignore
           wrapmethods(req.session)
         }
 
-        callback.apply(this, arguments)
+        args[1].apply(this, args)
       }
     }
 
@@ -404,9 +413,10 @@ export const session = (options:Options): Express=> {
         _reload.call(this, rewrapmethods(this, callback))
       }
 
-      const save = (...args) =>{
+      const save = (...args:any) =>{
+        // @ts-ignore
         debug.log('saving %s', sess.id.value);
-        savedHash = hash(this);
+        savedHash = hash(args);
         let realSession: {}
         realSession = Object.defineProperty({},"cookie",{
           value: sess.cookie,
@@ -415,18 +425,24 @@ export const session = (options:Options): Express=> {
         _save.apply(realSession, args);
       }
 
-      const touch = (callback: (err: any) => void) => {
-        debug.log('touching %s', sess.id);
+      function touch(this: { configurable: true; enumerable: false; value: (callback: DerefFunctionType) => any; writable: true; }, callback:DerefFunctionType) {
+        // @ts-ignore
+        debug('touching %s', this.id!);
         const cb = callback || function (err) { if (err) throw err; };
+        // @ts-ignore
         const touchStore = propagateTouch && storeImplementsTouch &&
             // Don't touch the store unless the session has been or will be written to the store.
-            (saveUninitializedSession || isModified(this.session) || isSaved(this));
-        _touch.call(this, touchStore ? (function (err: any) {
+            // @ts-ignore
+            (saveUninitializedSession || isModified(this) || isSaved(this));
+        // @ts-ignore
+        _touch.call(this, touchStore ? (function (err) {
           if (err) return cb(err);
-          store.touch(sess.id, this, cb);
+          // @ts-ignore
+          store.touch(this.id, this, cb);
           touchedStore = true; // Set synchronously regardless of success/failure.
         }).bind(this) : cb);
         touched = true; // Set synchronously regardless of success/failure.
+        // @ts-ignore
         return this;
       }
 
@@ -454,12 +470,14 @@ export const session = (options:Options): Express=> {
 
     // check if session has been modified
     const isModified = (sess:Session) => {
-      return originalId !== sess.id || originalHash !== hash(sess);
+      // @ts-ignore
+      return originalId !== sess.id.value || originalHash !== hash(sess);
     }
 
     // check if session has been saved
     const isSaved = (sess:Session) =>{
-      return originalId === sess.id && savedHash === hash(sess);
+      // @ts-ignore
+      return originalId === sess.id.value && savedHash === hash(sess);
     }
 
     // determine if session should be destroyed
@@ -627,6 +645,7 @@ function getcookie(req:any, name:string, secrets:string[]) {
 function hash(sess:Session): string {
   // serialize
   let cloned_hash = Object.assign({}, sess);
+  // @ts-ignore
   delete cloned_hash.req
   const str = JSON.stringify(cloned_hash, function (key, val) {
     // ignore sess.cookie property
@@ -658,13 +677,14 @@ const issecure = (req:any, trustProxy:boolean): boolean => {
     return true;
   }
 
+  // TODO Rewrite so IDEA doesn't suggest to remove this
   // do not trust proxy
-  if (!trustProxy) {
+  if (trustProxy === false) {
     return false;
   }
 
   // no explicit trust; try req.secure from express
-  if (!trustProxy) {
+  if (trustProxy !== true) {
     return req.secure === true
   }
 

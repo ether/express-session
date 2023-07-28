@@ -665,6 +665,7 @@ describe('session()', function(){
     })
 
     describe('when unspecified', function(){
+      let server:  http.Server<typeof http.IncomingMessage, typeof http.ServerResponse>
       before(function () {
         function setup (req: Request) {
           req.secure = req.headers['x-secure']
@@ -672,24 +673,24 @@ describe('session()', function(){
             : undefined
         }
 
-        function respond (req: Request, res: Response) {
+         const respond = (req: Request, res: Response)=> {
           res.end(String(req.secure))
         }
 
         // @ts-ignore
-        this.server = createServer(setup, { cookie: { secure: true }}, respond)
+        server = createServer(setup, { cookie: { secure: true }}, respond)
       })
 
-      it('should not trust X-Forwarded-Proto', function(done){
-        request(this.server)
+      it('should not trust X-Forwarded-Proto', (done)=>{
+        request(server)
         .get('/')
         .set('X-Forwarded-Proto', 'https')
         .expect(shouldNotHaveHeader('Set-Cookie'))
         .expect(200, done)
       })
 
-      it('should use req.secure', function (done) {
-        request(this.server)
+      it('should use req.secure',  (done) =>{
+        request(server)
         .get('/')
         .set('X-Forwarded-Proto', 'https')
         .set('X-Secure', 'true')
@@ -1049,18 +1050,18 @@ describe('session()', function(){
     it('calls store.touch() iff modified when saveUninitialized=false', function (done) {
       let called = false;
       const store = new MemoryStore();
-      store.touch = function touch(sid, sess, callback) { called = true; defer(callback); };
+      store.touch =  (sid, sess, callback) => { called = true; defer(callback) }
       const server = createServer({
         propagateTouch: true,
         store: store,
         saveUninitialized: false,
-      }, function (req:Request, res:Response) {
+      },  (req:Request, res:Response)=> {
         assert(!called);
-        req.session.touch(function (err:Error) {
+        req.session.touch( (err:Error)=> {
           if (err) throw err;
           req.session.modified = true;
           assert(!called);
-          req.session.touch(function (err:Error) {
+          req.session.touch( (err:Error)=> {
             if (err) throw err;
             assert(called);
             res.end();
@@ -1201,7 +1202,7 @@ describe('session()', function(){
         request(server)
         .get('/')
         .expect(shouldSetSessionInStore(store))
-        .expect(200, function (err, res) {
+        .expect(200,  (err, res)=> {
           if (err) return done(err)
           request(server)
           .get('/')
@@ -1637,10 +1638,12 @@ describe('session()', function(){
     })
   })
 
+
   describe('req.session', function(){
-    it('should persist', function(done){
+
+    it('should persist', (done)=>{
       const store = new MemoryStore()
-      const server = createServer({ store: store }, function (req:Request, res:Response) {
+      const server = createServer({ store: store },  (req:Request, res:Response) =>{
         req.session.count = req.session.count || 0
         req.session.count++
         res.end('hits: ' + req.session.count)
@@ -1648,9 +1651,9 @@ describe('session()', function(){
 
       request(server)
       .get('/')
-      .expect(200, 'hits: 1', function (err, res) {
+      .expect(200, 'hits: 1',  (err, res) => {
         if (err) return done(err)
-        store.load(sid(res), function (err: Error, sess:any) {
+        store.load(sid(res),  (err: Error, sess:any) =>{
           if (err) return done(err)
           assert.ok(sess)
           request(server)
@@ -2428,7 +2431,8 @@ describe('session()', function(){
       const app = express()
         .use(cookieParser())
         .use(function(req, res, next){ req.headers.cookie = 'foo=bar'; next() })
-        .use(createSession())
+          // @ts-ignore
+          .use(createSession())
         .use(function(req:any, res, next){
           req.session.count = req.session.count || 0
           req.session.count++
@@ -2450,7 +2454,8 @@ describe('session()', function(){
       const app = express()
         .use(cookieParser())
         .use(function(req, res, next){ req.headers.cookie = 'foo=bar'; next() })
-        .use(createSession({ key: 'sessid' }))
+          // @ts-ignore
+          .use(createSession({ key: 'sessid' }))
         .use(function(req:any, res, next){
           req.session.count = req.session.count || 0
           req.session.count++
@@ -2472,7 +2477,8 @@ describe('session()', function(){
       const app = express()
         .use(cookieParser())
         .use(function(req, res, next){ req.headers.cookie = 'foo=bar'; next() })
-        .use(createSession({ key: 'sessid' }))
+          // @ts-ignore
+          .use(createSession({ key: 'sessid' }))
         .use(function(req:any, res, next){
           req.session.count = req.session.count || 0
           req.session.count++
@@ -2495,7 +2501,8 @@ describe('session()', function(){
       const app = express()
         .use(cookieParser('keyboard cat'))
         .use(function(req, res, next){ delete req.headers.cookie; next() })
-        .use(createSession())
+          // @ts-ignore
+          .use(createSession())
         .use(function(req:any, res, next){
           req.session.count = req.session.count || 0
           req.session.count++
@@ -2536,14 +2543,16 @@ function  createServer (options?:Options|null, respond?:any) {
   return server.on('request', createRequestListener(opts, fn))
 }
 
-const createRequestListener = (opts:Options, fn?: Function)=> {
-  let _session = createSession(opts)
-  let respond = fn || end
+function createRequestListener(opts:Options, fn?:Function) {
+  var _session = createSession(opts)
+  var respond = fn || end
 
-  return  (req: any, res: any)=> {
-    const server = this
+  // @ts-ignore
+  return function onRequest(req, res) {
+    // @ts-ignore
+    var server = this
 
-    _session(req, res as any, (err:any)=> {
+    _session(req, res, function (err:any) {
       if (err && !res._header) {
         res.statusCode = err.status || 500
         res.end(err.message)
@@ -2551,7 +2560,6 @@ const createRequestListener = (opts:Options, fn?: Function)=> {
       }
 
       if (err) {
-        // @ts-ignore
         server.emit('error', err)
         return
       }
@@ -2711,10 +2719,10 @@ function shouldSetSessionInStore (store: any, delay?: number) {
   }
 }
 
-function sid (res: Response) {
+const sid = (res: Response) =>{
   const header = cookie(res)
   const data = header && parseSetCookie(header)
-  const value = data && unescape(data.value)
+  const value = data && decodeURIComponent(data.value)
   const sid = value && value.substring(2, value.indexOf('.'))
   return sid || undefined
 }
