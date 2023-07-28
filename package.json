@@ -24,6 +24,7 @@
     "uid-safe": "~2.1.5"
   },
   "devDependencies": {
+    "after": "^0.8.2",
     "cookie-parser": "^1.4.6",
     "eslint": "^8.46.0",
     "eslint-plugin-markdown": "^3.0.1",
