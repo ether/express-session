@@ -38,14 +38,18 @@ jobs:
       run: |
         nvm install --default ${{ matrix.node-version }}
         dirname "$(nvm which ${{ matrix.node-version }})" >> "$GITHUB_PATH"
-
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 10
     - name: Remove npm module(s) ${{ matrix.npm-rm }}
       run: npm rm --silent --save-dev ${{ matrix.npm-rm }}
       if: matrix.npm-rm != ''
 
     - name: Install npm module(s) ${{ matrix.npm-i }}
-      run: npm install --save-dev ${{ matrix.npm-i }}
+      run: pnpm install --save-dev ${{ matrix.npm-i }}
       if: matrix.npm-i != ''
+
 
     - name: Setup Node.js version-specific dependencies
       shell: bash
@@ -60,7 +64,7 @@ jobs:
         fi
 
     - name: Install Node.js dependencies
-      run: npm install
+      run: pnpm install
 
     - name: List environment
       id: list_env
